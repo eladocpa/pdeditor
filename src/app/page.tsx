@@ -12,6 +12,10 @@ import {
   Upload,
   Shield,
   Zap,
+  Layers,
+  FileSpreadsheet,
+  FileType,
+  RefreshCw,
 } from "lucide-react";
 
 export default function LandingPage() {
@@ -61,6 +65,21 @@ export default function LandingPage() {
       title: "הוספת תמונות",
       description: "העלה תמונות וחותמות והצמד אותן בכל מקום",
     },
+    {
+      icon: <Layers className="w-8 h-8 text-primary" />,
+      title: "סידור עמודים",
+      description: "סדר מחדש, מחק וסובב עמודים בקלות",
+    },
+    {
+      icon: <FileType className="w-8 h-8 text-primary" />,
+      title: "המרה לוורד",
+      description: "המר את קובץ ה-PDF למסמך Word עם תמיכה ב-RTL",
+    },
+    {
+      icon: <FileSpreadsheet className="w-8 h-8 text-primary" />,
+      title: "המרה לאקסל",
+      description: "המר טבלאות ונתונים מ-PDF לקובץ Excel",
+    },
   ];
 
   return (
@@ -94,7 +113,7 @@ export default function LandingPage() {
             ערוך קבצי PDF בקלות
           </h2>
           <p className="text-lg text-text-secondary max-w-2xl mx-auto">
-            הוסף חתימות, טקסט, תאריכים ותמונות לקבצי PDF ישירות מהדפדפן.
+            הוסף חתימות, טקסט, תאריכים ותמונות. סדר עמודים, המר לוורד ואקסל.
             <br />
             ללא צורך בהתקנה, מאובטח ומהיר.
           </p>
@@ -132,7 +151,7 @@ export default function LandingPage() {
         </div>
 
         {/* Features */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-20">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-20">
           {features.map((feature, index) => (
             <div
               key={index}

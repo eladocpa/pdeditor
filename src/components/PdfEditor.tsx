@@ -17,10 +17,16 @@ import {
   ZoomIn,
   ZoomOut,
   Trash2,
+  Layers,
+  FileSpreadsheet,
+  RefreshCw,
 } from "lucide-react";
 import DraggableItem, { OverlayItem } from "@/components/DraggableItem";
 import SignatureModal from "@/components/SignatureModal";
 import TextModal from "@/components/TextModal";
+import PageManager from "@/components/PageManager";
+import ConvertModal from "@/components/ConvertModal";
+
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 export default function PdfEditor() {
@@ -33,6 +39,8 @@ export default function PdfEditor() {
   const [overlayItems, setOverlayItems] = useState<OverlayItem[]>([]);
   const [showSignatureModal, setShowSignatureModal] = useState(false);
   const [showTextModal, setShowTextModal] = useState(false);
+  const [showPageManager, setShowPageManager] = useState(false);
+  const [showConvertModal, setShowConvertModal] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const pageContainerRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -124,6 +132,14 @@ export default function PdfEditor() {
 
   const clearAll = () => {
     setOverlayItems([]);
+  };
+
+  const handlePageManagerSave = (newPdfData: string) => {
+    setPdfData(newPdfData);
+    sessionStorage.setItem("pdfFile", newPdfData);
+    setCurrentPage(1);
+    setOverlayItems([]);
+    setShowPageManager(false);
   };
 
   const exportPdf = async () => {
@@ -258,6 +274,7 @@ export default function PdfEditor() {
       <div className="bg-surface border-b border-border sticky top-[57px] z-30">
         <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between">
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Annotation tools */}
             <button
               onClick={() => setShowSignatureModal(true)}
               className="toolbar-btn"
@@ -290,14 +307,37 @@ export default function PdfEditor() {
               onChange={handleAddImage}
               className="hidden"
             />
+
+            {/* Separator */}
+            <div className="w-px h-6 bg-border mx-1" />
+
+            {/* Document tools */}
+            <button
+              onClick={() => setShowPageManager(true)}
+              className="toolbar-btn"
+            >
+              <Layers className="w-4 h-4" />
+              סידור עמודים
+            </button>
+            <button
+              onClick={() => setShowConvertModal(true)}
+              className="toolbar-btn"
+            >
+              <RefreshCw className="w-4 h-4" />
+              המרה
+            </button>
+
             {overlayItems.length > 0 && (
-              <button
-                onClick={clearAll}
-                className="toolbar-btn text-red-500 hover:text-red-600"
-              >
-                <Trash2 className="w-4 h-4" />
-                נקה הכל
-              </button>
+              <>
+                <div className="w-px h-6 bg-border mx-1" />
+                <button
+                  onClick={clearAll}
+                  className="toolbar-btn text-red-500 hover:text-red-600"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  נקה הכל
+                </button>
+              </>
             )}
           </div>
 
@@ -397,6 +437,20 @@ export default function PdfEditor() {
         <TextModal
           onSave={handleTextSave}
           onClose={() => setShowTextModal(false)}
+        />
+      )}
+      {showPageManager && (
+        <PageManager
+          pdfData={pdfData}
+          onSave={handlePageManagerSave}
+          onClose={() => setShowPageManager(false)}
+        />
+      )}
+      {showConvertModal && (
+        <ConvertModal
+          pdfData={pdfData}
+          fileName={fileName}
+          onClose={() => setShowConvertModal(false)}
         />
       )}
     </div>
