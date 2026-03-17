@@ -1,17 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { X, Check } from "lucide-react";
+import { X, Check, Type } from "lucide-react";
 
 interface TextModalProps {
   onSave: (text: string, fontSize: number, color: string) => void;
   onClose: () => void;
 }
 
+const presetColors = ["#0f172a", "#1e40af", "#dc2626", "#059669", "#7c3aed", "#ea580c"];
+
 export default function TextModal({ onSave, onClose }: TextModalProps) {
   const [text, setText] = useState("");
   const [fontSize, setFontSize] = useState(16);
-  const [color, setColor] = useState("#1e293b");
+  const [color, setColor] = useState("#0f172a");
 
   const handleSave = () => {
     if (text.trim()) {
@@ -20,64 +22,86 @@ export default function TextModal({ onSave, onClose }: TextModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-lg mx-4">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold">הוסף טקסט</h3>
+    <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl w-full max-w-lg mx-4 shadow-2xl">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div className="flex items-center gap-2">
+            <div className="bg-blue-50 rounded-lg p-1.5">
+              <Type className="w-4 h-4 text-blue-600" />
+            </div>
+            <h3 className="text-base font-bold">הוסף טקסט</h3>
+          </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-gray-100"
+            className="p-1.5 rounded-lg hover:bg-bg-dark transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 text-text-muted" />
           </button>
         </div>
 
-        <div className="space-y-4">
+        <div className="p-5 space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">טקסט</label>
+            <label className="block text-xs font-medium text-text-secondary mb-1.5">טקסט</label>
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              className="w-full border border-border rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full border border-border rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all text-sm"
               rows={3}
               placeholder="הקלד טקסט כאן..."
               dir="auto"
               autoFocus
+              style={{ fontSize: `${Math.min(fontSize, 24)}px`, color }}
             />
           </div>
 
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium mb-1">
-                גודל ({fontSize}px)
-              </label>
-              <input
-                type="range"
-                min="10"
-                max="48"
-                value={fontSize}
-                onChange={(e) => setFontSize(Number(e.target.value))}
-                className="w-full"
-              />
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1.5">
+              גודל גופן: <span className="text-primary">{fontSize}px</span>
+            </label>
+            <input
+              type="range"
+              min="10"
+              max="48"
+              value={fontSize}
+              onChange={(e) => setFontSize(Number(e.target.value))}
+              className="w-full accent-primary"
+            />
+            <div className="flex justify-between text-[10px] text-text-muted mt-0.5">
+              <span>10px</span>
+              <span>48px</span>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">צבע</label>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1.5">צבע</label>
+            <div className="flex items-center gap-2">
+              {presetColors.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setColor(c)}
+                  className={`w-7 h-7 rounded-full border-2 transition-all ${
+                    color === c ? "border-primary scale-110 shadow-md" : "border-transparent hover:scale-105"
+                  }`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+              <div className="w-px h-6 bg-border mx-1" />
               <input
                 type="color"
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
-                className="w-10 h-10 rounded-lg border border-border cursor-pointer"
+                className="w-7 h-7 rounded-full border border-border cursor-pointer"
               />
             </div>
           </div>
         </div>
 
-        <div className="flex gap-3 justify-end mt-4">
+        <div className="flex gap-2 justify-end p-5 pt-0">
           <button onClick={onClose} className="toolbar-btn">
             ביטול
           </button>
           <button onClick={handleSave} className="toolbar-btn active">
-            <Check className="w-4 h-4" />
+            <Check className="w-3.5 h-3.5" />
             הוסף
           </button>
         </div>

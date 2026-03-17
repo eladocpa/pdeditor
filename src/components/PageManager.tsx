@@ -9,8 +9,9 @@ import {
   ArrowDown,
   RotateCw,
   Trash2,
-  GripVertical,
+  Undo2,
   Save,
+  Layers,
 } from "lucide-react";
 
 interface PageManagerProps {
@@ -86,7 +87,6 @@ export default function PageManager({ pdfData, onSave, onClose }: PageManagerPro
         ]);
         if (pageInfo.rotation !== 0) {
           copiedPage.setRotation(
-            // pdf-lib uses degrees type
             { type: "degrees", angle: (copiedPage.getRotation().angle + pageInfo.rotation) % 360 } as ReturnType<typeof copiedPage.getRotation>
           );
         }
@@ -113,49 +113,59 @@ export default function PageManager({ pdfData, onSave, onClose }: PageManagerPro
   const activeCount = pages.filter((p) => !p.deleted).length;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <h3 className="text-lg font-bold">סידור עמודים</h3>
+        <div className="flex items-center justify-between p-5 border-b border-border">
           <div className="flex items-center gap-2">
-            <span className="text-sm text-text-secondary">
-              {activeCount} עמודים פעילים
+            <div className="bg-amber-50 rounded-lg p-1.5">
+              <Layers className="w-4 h-4 text-amber-600" />
+            </div>
+            <h3 className="text-base font-bold">סידור עמודים</h3>
+            <span className="text-xs text-text-muted bg-bg-dark rounded-full px-2 py-0.5">
+              {activeCount} / {pages.length} פעילים
             </span>
-            <button
-              onClick={onClose}
-              className="p-1 rounded-lg hover:bg-gray-100"
-            >
-              <X className="w-5 h-5" />
-            </button>
           </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-bg-dark transition-colors"
+          >
+            <X className="w-4 h-4 text-text-muted" />
+          </button>
         </div>
 
         {/* Pages grid */}
-        <div className="flex-1 overflow-auto p-4">
+        <div className="flex-1 overflow-auto p-5">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
             <Document
               file={pdfData}
               onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-              loading={<p className="text-text-secondary col-span-full text-center py-8">טוען עמודים...</p>}
+              loading={
+                <div className="col-span-full flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                    <p className="text-text-secondary text-sm">טוען עמודים...</p>
+                  </div>
+                </div>
+              }
             >
               {pages.map((pageInfo, index) => (
                 <div
                   key={`${pageInfo.originalIndex}-${index}`}
-                  className={`relative border-2 rounded-xl overflow-hidden transition-all ${
+                  className={`relative rounded-xl overflow-hidden transition-all border-2 ${
                     pageInfo.deleted
-                      ? "border-red-300 opacity-40"
-                      : "border-border hover:border-primary"
+                      ? "border-red-200 opacity-40 bg-red-50/50"
+                      : "border-border hover:border-primary bg-white shadow-sm hover:shadow-md"
                   }`}
                 >
                   {/* Page number badge */}
-                  <div className="absolute top-2 right-2 z-10 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">
+                  <div className="absolute top-2 right-2 z-10 bg-black/70 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                     {index + 1}
                   </div>
 
                   {/* Thumbnail */}
                   <div
-                    className="flex items-center justify-center bg-gray-50 p-2"
+                    className="flex items-center justify-center p-2"
                     style={{
                       transform: `rotate(${pageInfo.rotation}deg)`,
                       minHeight: "180px",
@@ -170,11 +180,11 @@ export default function PageManager({ pdfData, onSave, onClose }: PageManagerPro
                   </div>
 
                   {/* Controls */}
-                  <div className="flex items-center justify-center gap-1 p-2 bg-gray-50 border-t border-border">
+                  <div className="flex items-center justify-center gap-0.5 p-2 bg-bg border-t border-border">
                     <button
                       onClick={() => movePage(index, -1)}
                       disabled={index === 0}
-                      className="p-1 rounded hover:bg-gray-200 disabled:opacity-30"
+                      className="p-1.5 rounded-lg hover:bg-white disabled:opacity-30 transition-colors"
                       title="הזז למעלה"
                     >
                       <ArrowUp className="w-3.5 h-3.5" />
@@ -182,26 +192,30 @@ export default function PageManager({ pdfData, onSave, onClose }: PageManagerPro
                     <button
                       onClick={() => movePage(index, 1)}
                       disabled={index === pages.length - 1}
-                      className="p-1 rounded hover:bg-gray-200 disabled:opacity-30"
+                      className="p-1.5 rounded-lg hover:bg-white disabled:opacity-30 transition-colors"
                       title="הזז למטה"
                     >
                       <ArrowDown className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => rotatePage(index)}
-                      className="p-1 rounded hover:bg-gray-200"
+                      className="p-1.5 rounded-lg hover:bg-white transition-colors"
                       title="סובב"
                     >
                       <RotateCw className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => toggleDelete(index)}
-                      className={`p-1 rounded hover:bg-gray-200 ${
-                        pageInfo.deleted ? "text-green-600" : "text-red-500"
+                      className={`p-1.5 rounded-lg hover:bg-white transition-colors ${
+                        pageInfo.deleted ? "text-success" : "text-danger"
                       }`}
                       title={pageInfo.deleted ? "שחזר" : "מחק"}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      {pageInfo.deleted ? (
+                        <Undo2 className="w-3.5 h-3.5" />
+                      ) : (
+                        <Trash2 className="w-3.5 h-3.5" />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -211,7 +225,7 @@ export default function PageManager({ pdfData, onSave, onClose }: PageManagerPro
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-4 border-t border-border">
+        <div className="flex items-center justify-end gap-2 p-5 border-t border-border">
           <button onClick={onClose} className="toolbar-btn">
             ביטול
           </button>
@@ -220,7 +234,7 @@ export default function PageManager({ pdfData, onSave, onClose }: PageManagerPro
             disabled={isSaving || activeCount === 0}
             className="toolbar-btn active"
           >
-            <Save className="w-4 h-4" />
+            <Save className="w-3.5 h-3.5" />
             {isSaving ? "שומר..." : "שמור שינויים"}
           </button>
         </div>

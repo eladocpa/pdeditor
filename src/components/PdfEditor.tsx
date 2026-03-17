@@ -18,8 +18,8 @@ import {
   ZoomOut,
   Trash2,
   Layers,
-  FileSpreadsheet,
   RefreshCw,
+  Stamp,
 } from "lucide-react";
 import DraggableItem, { OverlayItem } from "@/components/DraggableItem";
 import SignatureModal from "@/components/SignatureModal";
@@ -44,6 +44,7 @@ export default function PdfEditor() {
   const [isExporting, setIsExporting] = useState(false);
   const pageContainerRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const stampInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const stored = sessionStorage.getItem("pdfFile");
@@ -117,6 +118,28 @@ export default function PdfEditor() {
     e.target.value = "";
   };
 
+  const handleAddStamp = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      sessionStorage.setItem("stampImage", dataUrl);
+      addItem("image", dataUrl, { width: 150, height: 150 });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleAddSavedStamp = () => {
+    const saved = sessionStorage.getItem("stampImage");
+    if (saved) {
+      addItem("image", saved, { width: 150, height: 150 });
+    } else {
+      stampInputRef.current?.click();
+    }
+  };
+
   const updateItem = useCallback(
     (id: string, updates: Partial<OverlayItem>) => {
       setOverlayItems((prev) =>
@@ -154,7 +177,6 @@ export default function PdfEditor() {
       const pdfDoc = await PDFDocument.load(pdfBytes);
       const pages = pdfDoc.getPages();
 
-      // Get the canvas for measuring
       const canvas = pageContainerRef.current?.querySelector("canvas");
       if (!canvas) throw new Error("Canvas not found");
       const canvasRect = canvas.getBoundingClientRect();
@@ -165,7 +187,6 @@ export default function PdfEditor() {
         const page = pages[pageIndex];
         const { width: pageW, height: pageH } = page.getSize();
 
-        // Map canvas coords to PDF coords
         const scaleX = pageW / canvasRect.width;
         const scaleY = pageH / canvasRect.height;
 
@@ -233,7 +254,10 @@ export default function PdfEditor() {
   if (!pdfData) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-text-secondary">טוען...</p>
+        <div className="text-center">
+          <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-text-secondary text-sm">טוען...</p>
+        </div>
       </div>
     );
   }
@@ -241,8 +265,8 @@ export default function PdfEditor() {
   return (
     <div className="min-h-screen bg-bg flex flex-col">
       {/* Header */}
-      <header className="bg-surface border-b border-border sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <header className="bg-surface/90 glass border-b border-border sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push("/")}
@@ -251,10 +275,14 @@ export default function PdfEditor() {
               <ArrowRight className="w-4 h-4" />
               חזרה
             </button>
+            <div className="h-5 w-px bg-border" />
             <div className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-primary" />
-              <span className="font-medium text-sm truncate max-w-[200px]">
+              <FileText className="w-4 h-4 text-primary" />
+              <span className="font-medium text-sm truncate max-w-[200px] text-text-main">
                 {fileName}
+              </span>
+              <span className="text-[11px] text-text-muted bg-bg-dark rounded px-1.5 py-0.5">
+                {numPages} עמודים
               </span>
             </div>
           </div>
@@ -271,34 +299,40 @@ export default function PdfEditor() {
       </header>
 
       {/* Toolbar */}
-      <div className="bg-surface border-b border-border sticky top-[57px] z-30">
-        <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between">
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Annotation tools */}
+      <div className="bg-surface border-b border-border sticky top-[49px] z-30 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-1.5 flex items-center justify-between">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <button
               onClick={() => setShowSignatureModal(true)}
               className="toolbar-btn"
             >
-              <PenTool className="w-4 h-4" />
+              <PenTool className="w-3.5 h-3.5" />
               חתימה
             </button>
             <button
               onClick={() => setShowTextModal(true)}
               className="toolbar-btn"
             >
-              <Type className="w-4 h-4" />
+              <Type className="w-3.5 h-3.5" />
               טקסט
             </button>
             <button onClick={handleAddDate} className="toolbar-btn">
-              <Calendar className="w-4 h-4" />
+              <Calendar className="w-3.5 h-3.5" />
               תאריך
             </button>
             <button
               onClick={() => imageInputRef.current?.click()}
               className="toolbar-btn"
             >
-              <ImageIcon className="w-4 h-4" />
+              <ImageIcon className="w-3.5 h-3.5" />
               תמונה
+            </button>
+            <button
+              onClick={handleAddSavedStamp}
+              className="toolbar-btn"
+            >
+              <Stamp className="w-3.5 h-3.5" />
+              חותמת
             </button>
             <input
               ref={imageInputRef}
@@ -307,66 +341,71 @@ export default function PdfEditor() {
               onChange={handleAddImage}
               className="hidden"
             />
+            <input
+              ref={stampInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAddStamp}
+              className="hidden"
+            />
 
-            {/* Separator */}
-            <div className="w-px h-6 bg-border mx-1" />
+            <div className="w-px h-5 bg-border mx-0.5" />
 
-            {/* Document tools */}
             <button
               onClick={() => setShowPageManager(true)}
               className="toolbar-btn"
             >
-              <Layers className="w-4 h-4" />
-              סידור עמודים
+              <Layers className="w-3.5 h-3.5" />
+              עמודים
             </button>
             <button
               onClick={() => setShowConvertModal(true)}
               className="toolbar-btn"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className="w-3.5 h-3.5" />
               המרה
             </button>
 
             {overlayItems.length > 0 && (
               <>
-                <div className="w-px h-6 bg-border mx-1" />
+                <div className="w-px h-5 bg-border mx-0.5" />
                 <button
                   onClick={clearAll}
-                  className="toolbar-btn text-red-500 hover:text-red-600"
+                  className="toolbar-btn text-danger hover:text-red-600"
                 >
-                  <Trash2 className="w-4 h-4" />
-                  נקה הכל
+                  <Trash2 className="w-3.5 h-3.5" />
+                  נקה
                 </button>
               </>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <button
               onClick={() => setScale((s) => Math.max(0.5, s - 0.1))}
-              className="p-1.5 rounded-lg hover:bg-gray-100"
+              className="p-1.5 rounded-lg hover:bg-bg-dark transition-colors"
             >
-              <ZoomOut className="w-4 h-4" />
+              <ZoomOut className="w-4 h-4 text-text-secondary" />
             </button>
-            <span className="text-sm min-w-[50px] text-center">
+            <span className="text-xs font-medium min-w-[42px] text-center text-text-secondary">
               {Math.round(scale * 100)}%
             </span>
             <button
               onClick={() => setScale((s) => Math.min(2, s + 0.1))}
-              className="p-1.5 rounded-lg hover:bg-gray-100"
+              className="p-1.5 rounded-lg hover:bg-bg-dark transition-colors"
             >
-              <ZoomIn className="w-4 h-4" />
+              <ZoomIn className="w-4 h-4 text-text-secondary" />
             </button>
           </div>
         </div>
       </div>
 
       {/* PDF Viewer */}
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 overflow-auto p-6 bg-bg-dark">
         <div className="flex justify-center">
           <div
             ref={pageContainerRef}
-            className="relative bg-white shadow-lg rounded-lg overflow-hidden"
+            className="relative bg-white shadow-xl rounded-lg overflow-hidden ring-1 ring-black/5"
             style={{ transform: `scale(${scale})`, transformOrigin: "top center" }}
           >
             <Document
@@ -374,7 +413,10 @@ export default function PdfEditor() {
               onLoadSuccess={onDocumentLoadSuccess}
               loading={
                 <div className="flex items-center justify-center h-96 w-[600px]">
-                  <p className="text-text-secondary">טוען מסמך...</p>
+                  <div className="text-center">
+                    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                    <p className="text-text-secondary text-sm">טוען מסמך...</p>
+                  </div>
                 </div>
               }
             >
@@ -385,7 +427,6 @@ export default function PdfEditor() {
               />
             </Document>
 
-            {/* Overlay items */}
             {currentPageItems.map((item) => (
               <DraggableItem
                 key={item.id}
@@ -402,23 +443,29 @@ export default function PdfEditor() {
       {/* Page navigation */}
       {numPages > 1 && (
         <div className="bg-surface border-t border-border sticky bottom-0">
-          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-center gap-4">
+          <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-center gap-3">
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage <= 1}
-              className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-30"
+              className="p-1.5 rounded-lg hover:bg-bg-dark disabled:opacity-30 transition-colors"
             >
               <ChevronRight className="w-5 h-5" />
             </button>
-            <span className="text-sm font-medium">
-              עמוד {currentPage} מתוך {numPages}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-text-main">
+                {currentPage}
+              </span>
+              <span className="text-xs text-text-muted">/</span>
+              <span className="text-sm text-text-secondary">
+                {numPages}
+              </span>
+            </div>
             <button
               onClick={() =>
                 setCurrentPage((p) => Math.min(numPages, p + 1))
               }
               disabled={currentPage >= numPages}
-              className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-30"
+              className="p-1.5 rounded-lg hover:bg-bg-dark disabled:opacity-30 transition-colors"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>

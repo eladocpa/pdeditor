@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, FileSpreadsheet, FileText, Download, Loader2 } from "lucide-react";
+import { X, FileSpreadsheet, FileText, Download, Loader2, RefreshCw } from "lucide-react";
 import { pdfjs } from "react-pdf";
 
 interface ConvertModalProps {
@@ -113,14 +113,12 @@ export default function ConvertModal({ pdfData, fileName, onClose }: ConvertModa
 
       pages.forEach((page) => {
         const rows = page.lines.map((line) => {
-          // Try to split by common delimiters (tabs, multiple spaces, commas)
           const cells = line.split(/\t|,|(?:\s{2,})/).map((c) => c.trim()).filter(Boolean);
           return cells.length > 1 ? cells : [line];
         });
 
         const ws = XLSX.utils.aoa_to_sheet(rows);
 
-        // Set RTL
         if (!ws["!cols"]) ws["!cols"] = [];
         ws["!RTL"] = true;
 
@@ -152,38 +150,43 @@ export default function ConvertModal({ pdfData, fileName, onClose }: ConvertModa
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-bold">המרת מסמך</h3>
+    <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl w-full max-w-md mx-4 shadow-2xl">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div className="flex items-center gap-2">
+            <div className="bg-violet-50 rounded-lg p-1.5">
+              <RefreshCw className="w-4 h-4 text-violet-600" />
+            </div>
+            <h3 className="text-base font-bold">המרת מסמך</h3>
+          </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-gray-100"
+            className="p-1.5 rounded-lg hover:bg-bg-dark transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 text-text-muted" />
           </button>
         </div>
 
-        <div className="space-y-3">
+        <div className="p-5 space-y-3">
           {/* Word */}
           <button
             onClick={convertToWord}
             disabled={isConverting}
-            className="w-full flex items-center gap-4 p-4 border-2 border-border rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-all disabled:opacity-50"
+            className="w-full flex items-center gap-4 p-4 border-2 border-border rounded-xl hover:border-blue-300 hover:bg-blue-50/30 transition-all disabled:opacity-50 group"
           >
-            <div className="bg-blue-100 rounded-xl p-3">
-              <FileText className="w-6 h-6 text-blue-600" />
+            <div className="bg-blue-50 rounded-xl p-3 group-hover:bg-blue-100 transition-colors">
+              <FileText className="w-5 h-5 text-blue-600" />
             </div>
             <div className="text-right flex-1">
-              <p className="font-bold">המרה לוורד</p>
-              <p className="text-sm text-text-secondary">
-                ייצוא כקובץ DOCX עם עיצוב RTL
+              <p className="font-bold text-sm">המרה לוורד</p>
+              <p className="text-xs text-text-secondary">
+                ייצוא כקובץ DOCX עם תמיכה ב-RTL
               </p>
             </div>
             {isConverting && convertType === "word" ? (
               <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
             ) : (
-              <Download className="w-5 h-5 text-text-secondary" />
+              <Download className="w-4 h-4 text-text-muted group-hover:text-blue-600 transition-colors" />
             )}
           </button>
 
@@ -191,28 +194,30 @@ export default function ConvertModal({ pdfData, fileName, onClose }: ConvertModa
           <button
             onClick={convertToExcel}
             disabled={isConverting}
-            className="w-full flex items-center gap-4 p-4 border-2 border-border rounded-xl hover:border-green-400 hover:bg-green-50/50 transition-all disabled:opacity-50"
+            className="w-full flex items-center gap-4 p-4 border-2 border-border rounded-xl hover:border-green-300 hover:bg-green-50/30 transition-all disabled:opacity-50 group"
           >
-            <div className="bg-green-100 rounded-xl p-3">
-              <FileSpreadsheet className="w-6 h-6 text-green-600" />
+            <div className="bg-green-50 rounded-xl p-3 group-hover:bg-green-100 transition-colors">
+              <FileSpreadsheet className="w-5 h-5 text-green-600" />
             </div>
             <div className="text-right flex-1">
-              <p className="font-bold">המרה לאקסל</p>
-              <p className="text-sm text-text-secondary">
+              <p className="font-bold text-sm">המרה לאקסל</p>
+              <p className="text-xs text-text-secondary">
                 ייצוא כקובץ XLSX - עמוד לכל גיליון
               </p>
             </div>
             {isConverting && convertType === "excel" ? (
               <Loader2 className="w-5 h-5 animate-spin text-green-600" />
             ) : (
-              <Download className="w-5 h-5 text-text-secondary" />
+              <Download className="w-4 h-4 text-text-muted group-hover:text-green-600 transition-colors" />
             )}
           </button>
         </div>
 
-        <p className="text-xs text-text-secondary mt-4 text-center">
-          ההמרה מתבצעת ישירות בדפדפן. הקובץ לא נשלח לשרת.
-        </p>
+        <div className="px-5 pb-5">
+          <p className="text-[11px] text-text-muted text-center bg-bg-dark rounded-lg py-2">
+            ההמרה מתבצעת ישירות בדפדפן - הקובץ לא נשלח לשרת
+          </p>
+        </div>
       </div>
     </div>
   );
