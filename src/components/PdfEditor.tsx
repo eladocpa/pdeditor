@@ -422,6 +422,7 @@ export default function PdfEditor() {
             >
               <Page
                 pageNumber={currentPage}
+                width={800}
                 renderTextLayer={false}
                 renderAnnotationLayer={false}
               />
