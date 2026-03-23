@@ -203,43 +203,24 @@ export default function PdfEditor() {
       const pdfDoc = await PDFDocument.load(pdfBytes);
       const pages = pdfDoc.getPages();
 
-      // Use pdfjs (same engine as react-pdf) to get the exact viewport
-      // transform used during rendering — this guarantees coordinate consistency.
-      const pdfjsDoc = await pdfjs.getDocument({ data: pdfBytes }).promise;
-
       for (const item of overlayItems) {
         const pageIndex = item.page - 1;
         if (pageIndex < 0 || pageIndex >= pages.length) continue;
         const page = pages[pageIndex];
 
-        // Get the pdfjs page and compute the same viewport react-pdf used
-        const pdfjsPage = await pdfjsDoc.getPage(item.page);
-        const defaultViewport = pdfjsPage.getViewport({ scale: 1 });
-        const renderScale = PAGE_RENDER_WIDTH / defaultViewport.width;
-        const viewport = pdfjsPage.getViewport({ scale: renderScale });
+        // pdf-lib getSize() returns visual dimensions (accounts for /Rotate)
+        const { width: pageW, height: pageH } = page.getSize();
 
-        // Use pdfjs to convert from rendered pixel coords → PDF user space coords.
-        // This handles rotation, CropBox, MediaBox — everything.
-        // convertToPdfPoint takes (canvasX, canvasY) and returns [pdfX, pdfY]
-        const [blX, blY] = viewport.convertToPdfPoint(item.x, item.y + item.height);
-        const [trX, trY] = viewport.convertToPdfPoint(item.x + item.width, item.y);
+        // The react-pdf <Page width={PAGE_RENDER_WIDTH}> renders the page at
+        // PAGE_RENDER_WIDTH px wide, scaled proportionally. So:
+        // ratio = pdfPoints / cssPixels
+        const ratio = pageW / PAGE_RENDER_WIDTH;
 
-        const pdfX = Math.min(blX, trX);
-        const pdfY = Math.min(blY, trY);
-        const pdfW = Math.abs(trX - blX);
-        const pdfH = Math.abs(trY - blY);
-
-        // DEBUG — remove after fixing
-        const { width: dbgPW, height: dbgPH } = page.getSize();
-        console.log(`[EXPORT DEBUG] item: ${item.type}`, {
-          overlay: { x: item.x, y: item.y, w: item.width, h: item.height },
-          pdflibPage: { w: dbgPW, h: dbgPH },
-          pdfjsViewport: { w: defaultViewport.width, h: defaultViewport.height, scale: renderScale },
-          renderedViewport: { w: viewport.width, h: viewport.height },
-          convertedBL: { blX, blY },
-          convertedTR: { trX, trY },
-          finalPdf: { x: pdfX, y: pdfY, w: pdfW, h: pdfH },
-        });
+        // Convert overlay coords (top-left origin, CSS px) → PDF coords (bottom-left origin, points)
+        const pdfW = item.width * ratio;
+        const pdfH = item.height * ratio;
+        const pdfX = item.x * ratio;
+        const pdfY = pageH - (item.y * ratio) - pdfH;
 
         if (item.type === "signature" || item.type === "image") {
           const imgData = item.content.split(",")[1];
@@ -252,11 +233,32 @@ export default function PdfEditor() {
           } else {
             img = await pdfDoc.embedJpg(imgBytes);
           }
+
+          // Match CSS "object-contain": preserve the image's natural aspect ratio
+          // and center it within the overlay bounds — just like the editor does.
+          const imgAspect = img.width / img.height;
+          const boxAspect = pdfW / pdfH;
+          let drawX: number, drawY: number, drawW: number, drawH: number;
+
+          if (imgAspect > boxAspect) {
+            // Image is wider than box: fit to width, center vertically
+            drawW = pdfW;
+            drawH = pdfW / imgAspect;
+            drawX = pdfX;
+            drawY = pdfY + (pdfH - drawH) / 2;
+          } else {
+            // Image is taller than box: fit to height, center horizontally
+            drawH = pdfH;
+            drawW = pdfH * imgAspect;
+            drawX = pdfX + (pdfW - drawW) / 2;
+            drawY = pdfY;
+          }
+
           page.drawImage(img, {
-            x: pdfX,
-            y: pdfY,
-            width: pdfW,
-            height: pdfH,
+            x: drawX,
+            y: drawY,
+            width: drawW,
+            height: drawH,
           });
         } else {
           const { rgb } = await import("pdf-lib");
@@ -267,18 +269,15 @@ export default function PdfEditor() {
             return rgb(r, g, b);
           };
 
-          const scaleFactor = defaultViewport.width / PAGE_RENDER_WIDTH;
-          const fontSize = (item.fontSize || 16) * scaleFactor;
+          const fontSize = (item.fontSize || 16) * ratio;
           page.drawText(item.content, {
             x: pdfX,
-            y: pdfY + pdfH * 0.2,
+            y: pdfY + pdfH - fontSize,
             size: fontSize,
             color: hexToRgb(item.color || "#1e293b"),
           });
         }
       }
-
-      pdfjsDoc.destroy();
 
       const modifiedPdfBytes = await pdfDoc.save();
       const blob = new Blob([modifiedPdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
