@@ -37,34 +37,52 @@ export default function DraggableItem({
   const dragOffset = useRef({ x: 0, y: 0 });
   const resizeStart = useRef({ x: 0, y: 0, w: 0, h: 0 });
 
+  /** Convert a viewport mouse position to the container's local coordinate space */
+  const viewportToLocal = useCallback(
+    (clientX: number, clientY: number) => {
+      const container = containerRef.current;
+      if (!container) return { x: clientX, y: clientY };
+      const rect = container.getBoundingClientRect();
+      // rect includes the CSS scale transform, so:
+      // scale = rect.width / container.clientWidth
+      const scaleX = rect.width / container.clientWidth;
+      const scaleY = rect.height / container.clientHeight;
+      return {
+        x: (clientX - rect.left) / scaleX,
+        y: (clientY - rect.top) / scaleY,
+      };
+    },
+    [containerRef]
+  );
+
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return;
+      const local = viewportToLocal(e.clientX, e.clientY);
       dragOffset.current = {
-        x: e.clientX - item.x,
-        y: e.clientY - item.y,
+        x: local.x - item.x,
+        y: local.y - item.y,
       };
       setIsDragging(true);
     },
-    [item.x, item.y, containerRef]
+    [item.x, item.y, viewportToLocal]
   );
 
   const handleResizeDown = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      const local = viewportToLocal(e.clientX, e.clientY);
       resizeStart.current = {
-        x: e.clientX,
-        y: e.clientY,
+        x: local.x,
+        y: local.y,
         w: item.width,
         h: item.height,
       };
       setIsResizing(true);
     },
-    [item.width, item.height]
+    [item.width, item.height, viewportToLocal]
   );
 
   const handleRemoveBg = useCallback(
@@ -85,13 +103,14 @@ export default function DraggableItem({
     if (!isDragging && !isResizing) return;
 
     const handleMouseMove = (e: MouseEvent) => {
+      const local = viewportToLocal(e.clientX, e.clientY);
       if (isDragging) {
-        const newX = e.clientX - dragOffset.current.x;
-        const newY = e.clientY - dragOffset.current.y;
+        const newX = local.x - dragOffset.current.x;
+        const newY = local.y - dragOffset.current.y;
         onUpdate(item.id, { x: newX, y: newY });
       } else if (isResizing) {
-        const dx = e.clientX - resizeStart.current.x;
-        const dy = e.clientY - resizeStart.current.y;
+        const dx = local.x - resizeStart.current.x;
+        const dy = local.y - resizeStart.current.y;
         const newW = Math.max(30, resizeStart.current.w + dx);
         const newH = Math.max(15, resizeStart.current.h + dy);
         onUpdate(item.id, { width: newW, height: newH });
@@ -109,7 +128,7 @@ export default function DraggableItem({
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging, isResizing, item.id, onUpdate]);
+  }, [isDragging, isResizing, item.id, onUpdate, viewportToLocal]);
 
   const renderContent = () => {
     switch (item.type) {

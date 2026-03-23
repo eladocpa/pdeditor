@@ -70,13 +70,15 @@ export default function PdfEditor() {
     ) => {
       const container = pageContainerRef.current;
       if (!container) return;
-      const rect = container.getBoundingClientRect();
+      // Use clientWidth/clientHeight (local coords, unaffected by CSS scale)
+      const cw = container.clientWidth;
+      const ch = container.clientHeight;
 
       const newItem: OverlayItem = {
         id: `${type}-${Date.now()}`,
         type,
-        x: rect.width / 2 - (opts?.width || 100) / 2,
-        y: rect.height / 3,
+        x: cw / 2 - (opts?.width || 100) / 2,
+        y: ch / 3,
         width: opts?.width || (type === "text" || type === "date" ? 200 : 200),
         height:
           opts?.height || (type === "text" || type === "date" ? 30 : 80),
@@ -186,6 +188,9 @@ export default function PdfEditor() {
     setShowPageManager(false);
   };
 
+  // The width we pass to <Page width={...}> — must stay in sync
+  const PAGE_RENDER_WIDTH = 800;
+
   const exportPdf = async () => {
     if (!pdfData) return;
     setIsExporting(true);
@@ -198,26 +203,33 @@ export default function PdfEditor() {
       const pdfDoc = await PDFDocument.load(pdfBytes);
       const pages = pdfDoc.getPages();
 
-      // Use clientWidth/clientHeight which are NOT affected by CSS transforms
-      const canvas = pageContainerRef.current?.querySelector("canvas");
-      if (!canvas) throw new Error("Canvas not found");
-      const canvasW = (canvas as HTMLCanvasElement).clientWidth;
-      const canvasH = (canvas as HTMLCanvasElement).clientHeight;
-
       for (const item of overlayItems) {
         const pageIndex = item.page - 1;
         if (pageIndex < 0 || pageIndex >= pages.length) continue;
         const page = pages[pageIndex];
         const { width: pageW, height: pageH } = page.getSize();
 
-        // Map from canvas CSS pixels (unscaled) to PDF points
-        const scaleX = pageW / canvasW;
-        const scaleY = pageH / canvasH;
+        // Compute the render dimensions that react-pdf uses for this page.
+        // <Page width={800}> scales the page so its width = 800 CSS px,
+        // keeping the aspect ratio, so height = 800 * (pageH / pageW).
+        // Account for page rotation: react-pdf swaps w/h for rotated pages.
+        const rotation = page.getRotation().angle;
+        const isRotated = rotation === 90 || rotation === 270;
+        const effectiveW = isRotated ? pageH : pageW;
+        const effectiveH = isRotated ? pageW : pageH;
 
-        const pdfX = item.x * scaleX;
-        const pdfY = pageH - (item.y + item.height) * scaleY;
-        const pdfW = item.width * scaleX;
-        const pdfH = item.height * scaleY;
+        const renderW = PAGE_RENDER_WIDTH;
+        const renderH = PAGE_RENDER_WIDTH * (effectiveH / effectiveW);
+
+        // Scale factor: CSS pixels → PDF points
+        const sx = effectiveW / renderW;
+        const sy = effectiveH / renderH; // equals sx for uniform scaling
+
+        // Convert overlay position (top-left origin) → PDF position (bottom-left origin)
+        const pdfX = item.x * sx;
+        const pdfY = effectiveH - (item.y + item.height) * sy;
+        const pdfW = item.width * sx;
+        const pdfH = item.height * sy;
 
         if (item.type === "signature" || item.type === "image") {
           const imgData = item.content.split(",")[1];
@@ -245,7 +257,7 @@ export default function PdfEditor() {
             return rgb(r, g, b);
           };
 
-          const fontSize = (item.fontSize || 16) * scaleX;
+          const fontSize = (item.fontSize || 16) * sx;
           page.drawText(item.content, {
             x: pdfX,
             y: pdfY + pdfH * 0.2,
@@ -446,7 +458,7 @@ export default function PdfEditor() {
             >
               <Page
                 pageNumber={currentPage}
-                width={800}
+                width={PAGE_RENDER_WIDTH}
                 renderTextLayer={false}
                 renderAnnotationLayer={false}
               />
