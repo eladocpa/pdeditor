@@ -229,6 +229,18 @@ export default function PdfEditor() {
         const pdfW = Math.abs(trX - blX);
         const pdfH = Math.abs(trY - blY);
 
+        // DEBUG — remove after fixing
+        const { width: dbgPW, height: dbgPH } = page.getSize();
+        console.log(`[EXPORT DEBUG] item: ${item.type}`, {
+          overlay: { x: item.x, y: item.y, w: item.width, h: item.height },
+          pdflibPage: { w: dbgPW, h: dbgPH },
+          pdfjsViewport: { w: defaultViewport.width, h: defaultViewport.height, scale: renderScale },
+          renderedViewport: { w: viewport.width, h: viewport.height },
+          convertedBL: { blX, blY },
+          convertedTR: { trX, trY },
+          finalPdf: { x: pdfX, y: pdfY, w: pdfW, h: pdfH },
+        });
+
         if (item.type === "signature" || item.type === "image") {
           const imgData = item.content.split(",")[1];
           const imgBytes = Uint8Array.from(atob(imgData), (c) =>
