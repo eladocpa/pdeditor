@@ -203,33 +203,31 @@ export default function PdfEditor() {
       const pdfDoc = await PDFDocument.load(pdfBytes);
       const pages = pdfDoc.getPages();
 
+      // Use pdfjs (same engine as react-pdf) to get the exact viewport
+      // transform used during rendering — this guarantees coordinate consistency.
+      const pdfjsDoc = await pdfjs.getDocument({ data: pdfBytes }).promise;
+
       for (const item of overlayItems) {
         const pageIndex = item.page - 1;
         if (pageIndex < 0 || pageIndex >= pages.length) continue;
         const page = pages[pageIndex];
-        const { width: pageW, height: pageH } = page.getSize();
 
-        // Compute the render dimensions that react-pdf uses for this page.
-        // <Page width={800}> scales the page so its width = 800 CSS px,
-        // keeping the aspect ratio, so height = 800 * (pageH / pageW).
-        // Account for page rotation: react-pdf swaps w/h for rotated pages.
-        const rotation = page.getRotation().angle;
-        const isRotated = rotation === 90 || rotation === 270;
-        const effectiveW = isRotated ? pageH : pageW;
-        const effectiveH = isRotated ? pageW : pageH;
+        // Get the pdfjs page and compute the same viewport react-pdf used
+        const pdfjsPage = await pdfjsDoc.getPage(item.page);
+        const defaultViewport = pdfjsPage.getViewport({ scale: 1 });
+        const renderScale = PAGE_RENDER_WIDTH / defaultViewport.width;
+        const viewport = pdfjsPage.getViewport({ scale: renderScale });
 
-        const renderW = PAGE_RENDER_WIDTH;
-        const renderH = PAGE_RENDER_WIDTH * (effectiveH / effectiveW);
+        // Use pdfjs to convert from rendered pixel coords → PDF user space coords.
+        // This handles rotation, CropBox, MediaBox — everything.
+        // convertToPdfPoint takes (canvasX, canvasY) and returns [pdfX, pdfY]
+        const [blX, blY] = viewport.convertToPdfPoint(item.x, item.y + item.height);
+        const [trX, trY] = viewport.convertToPdfPoint(item.x + item.width, item.y);
 
-        // Scale factor: CSS pixels → PDF points
-        const sx = effectiveW / renderW;
-        const sy = effectiveH / renderH; // equals sx for uniform scaling
-
-        // Convert overlay position (top-left origin) → PDF position (bottom-left origin)
-        const pdfX = item.x * sx;
-        const pdfY = effectiveH - (item.y + item.height) * sy;
-        const pdfW = item.width * sx;
-        const pdfH = item.height * sy;
+        const pdfX = Math.min(blX, trX);
+        const pdfY = Math.min(blY, trY);
+        const pdfW = Math.abs(trX - blX);
+        const pdfH = Math.abs(trY - blY);
 
         if (item.type === "signature" || item.type === "image") {
           const imgData = item.content.split(",")[1];
@@ -257,7 +255,8 @@ export default function PdfEditor() {
             return rgb(r, g, b);
           };
 
-          const fontSize = (item.fontSize || 16) * sx;
+          const scaleFactor = defaultViewport.width / PAGE_RENDER_WIDTH;
+          const fontSize = (item.fontSize || 16) * scaleFactor;
           page.drawText(item.content, {
             x: pdfX,
             y: pdfY + pdfH * 0.2,
@@ -266,6 +265,8 @@ export default function PdfEditor() {
           });
         }
       }
+
+      pdfjsDoc.destroy();
 
       const modifiedPdfBytes = await pdfDoc.save();
       const blob = new Blob([modifiedPdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
