@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   Globe,
 } from "lucide-react";
+import { removeBackground } from "@/lib/removeBackground";
 
 export default function LandingPage() {
   const router = useRouter();
@@ -46,9 +47,15 @@ export default function LandingPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      sessionStorage.setItem("stampImage", reader.result as string);
-      alert("החותמת נשמרה! היא תהיה זמינה בעורך.");
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      try {
+        const transparent = await removeBackground(dataUrl);
+        sessionStorage.setItem("stampImage", transparent);
+      } catch {
+        sessionStorage.setItem("stampImage", dataUrl);
+      }
+      alert("החותמת נשמרה (רקע הוסר אוטומטית)! היא תהיה זמינה בעורך.");
     };
     reader.readAsDataURL(file);
     e.target.value = "";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { X, Maximize2 } from "lucide-react";
+import { X, Maximize2, Eraser } from "lucide-react";
 
 export interface OverlayItem {
   id: string;
@@ -20,6 +20,7 @@ interface DraggableItemProps {
   item: OverlayItem;
   onUpdate: (id: string, updates: Partial<OverlayItem>) => void;
   onDelete: (id: string) => void;
+  onRemoveBg?: (id: string) => void;
   containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -27,10 +28,12 @@ export default function DraggableItem({
   item,
   onUpdate,
   onDelete,
+  onRemoveBg,
   containerRef,
 }: DraggableItemProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const [isRemovingBg, setIsRemovingBg] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
   const resizeStart = useRef({ x: 0, y: 0, w: 0, h: 0 });
 
@@ -62,6 +65,20 @@ export default function DraggableItem({
       setIsResizing(true);
     },
     [item.width, item.height]
+  );
+
+  const handleRemoveBg = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!onRemoveBg || isRemovingBg) return;
+      setIsRemovingBg(true);
+      try {
+        await onRemoveBg(item.id);
+      } finally {
+        setIsRemovingBg(false);
+      }
+    },
+    [onRemoveBg, item.id, isRemovingBg]
   );
 
   useEffect(() => {
@@ -124,6 +141,8 @@ export default function DraggableItem({
     }
   };
 
+  const showRemoveBg = item.type === "image" && onRemoveBg;
+
   return (
     <div
       className="pdf-overlay-item group"
@@ -147,6 +166,21 @@ export default function DraggableItem({
       >
         <X className="w-3 h-3" />
       </button>
+
+      {/* Remove background button - for images */}
+      {showRemoveBg && (
+        <button
+          className="absolute -top-3 -left-3 bg-indigo-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={handleRemoveBg}
+          title="הסר רקע"
+        >
+          {isRemovingBg ? (
+            <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Eraser className="w-3 h-3" />
+          )}
+        </button>
+      )}
 
       {/* Resize handle */}
       <div

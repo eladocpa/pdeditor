@@ -26,6 +26,7 @@ import SignatureModal from "@/components/SignatureModal";
 import TextModal from "@/components/TextModal";
 import PageManager from "@/components/PageManager";
 import ConvertModal from "@/components/ConvertModal";
+import { removeBackground } from "@/lib/removeBackground";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -118,14 +119,20 @@ export default function PdfEditor() {
     e.target.value = "";
   };
 
-  const handleAddStamp = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAddStamp = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       const dataUrl = reader.result as string;
-      sessionStorage.setItem("stampImage", dataUrl);
-      addItem("image", dataUrl, { width: 150, height: 150 });
+      try {
+        const transparent = await removeBackground(dataUrl);
+        sessionStorage.setItem("stampImage", transparent);
+        addItem("image", transparent, { width: 150, height: 150 });
+      } catch {
+        sessionStorage.setItem("stampImage", dataUrl);
+        addItem("image", dataUrl, { width: 150, height: 150 });
+      }
     };
     reader.readAsDataURL(file);
     e.target.value = "";
@@ -152,6 +159,20 @@ export default function PdfEditor() {
   const deleteItem = useCallback((id: string) => {
     setOverlayItems((prev) => prev.filter((item) => item.id !== id));
   }, []);
+
+  const handleRemoveBg = useCallback(
+    async (id: string) => {
+      const item = overlayItems.find((i) => i.id === id);
+      if (!item) return;
+      try {
+        const transparent = await removeBackground(item.content);
+        updateItem(id, { content: transparent });
+      } catch {
+        // silently fail
+      }
+    },
+    [overlayItems, updateItem]
+  );
 
   const clearAll = () => {
     setOverlayItems([]);
@@ -434,6 +455,7 @@ export default function PdfEditor() {
                 item={item}
                 onUpdate={updateItem}
                 onDelete={deleteItem}
+                onRemoveBg={handleRemoveBg}
                 containerRef={pageContainerRef}
               />
             ))}
