@@ -198,9 +198,11 @@ export default function PdfEditor() {
       const pdfDoc = await PDFDocument.load(pdfBytes);
       const pages = pdfDoc.getPages();
 
+      // Use clientWidth/clientHeight which are NOT affected by CSS transforms
       const canvas = pageContainerRef.current?.querySelector("canvas");
       if (!canvas) throw new Error("Canvas not found");
-      const canvasRect = canvas.getBoundingClientRect();
+      const canvasW = (canvas as HTMLCanvasElement).clientWidth;
+      const canvasH = (canvas as HTMLCanvasElement).clientHeight;
 
       for (const item of overlayItems) {
         const pageIndex = item.page - 1;
@@ -208,8 +210,9 @@ export default function PdfEditor() {
         const page = pages[pageIndex];
         const { width: pageW, height: pageH } = page.getSize();
 
-        const scaleX = pageW / canvasRect.width;
-        const scaleY = pageH / canvasRect.height;
+        // Map from canvas CSS pixels (unscaled) to PDF points
+        const scaleX = pageW / canvasW;
+        const scaleY = pageH / canvasH;
 
         const pdfX = item.x * scaleX;
         const pdfY = pageH - (item.y + item.height) * scaleY;
