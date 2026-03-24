@@ -287,7 +287,7 @@ export default function PdfEditor() {
               break;
             }
             case "rectangle": {
-              page.drawRectangle({ x: pdfX + sw, y: pdfY + sw, width: pdfW - sw * 2, height: pdfH - sw * 2, borderColor: color, borderWidth: sw, color: rgb(0, 0, 0), opacity: 0 });
+              page.drawRectangle({ x: pdfX + sw, y: pdfY + sw, width: pdfW - sw * 2, height: pdfH - sw * 2, borderColor: color, borderWidth: sw, opacity: 0 });
               break;
             }
             case "circle": {
@@ -295,7 +295,7 @@ export default function PdfEditor() {
               const cy = pdfY + pdfH / 2;
               const rx = (pdfW / 2) - sw;
               const ry = (pdfH / 2) - sw;
-              page.drawEllipse({ x: cx, y: cy, xScale: rx, yScale: ry, borderColor: color, borderWidth: sw, color: rgb(0, 0, 0), opacity: 0 });
+              page.drawEllipse({ x: cx, y: cy, xScale: rx, yScale: ry, borderColor: color, borderWidth: sw, opacity: 0 });
               break;
             }
             case "triangle": {
@@ -394,7 +394,7 @@ export default function PdfEditor() {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Export error:", error);
-      alert("שגיאה בייצוא הקובץ. נסה שוב.");
+      alert(`שגיאה בייצוא הקובץ: ${error instanceof Error ? error.message : error}`);
     } finally {
       setIsExporting(false);
     }
