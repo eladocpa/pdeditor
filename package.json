@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
     "@react-pdf/renderer": "^4.3.2",
     "@types/file-saver": "^2.0.7",
     "@types/pdf-parse": "^1.1.5",

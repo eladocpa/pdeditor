@@ -240,7 +240,9 @@ export default function PdfEditor() {
       const pdfDoc = await PDFDocument.load(pdfBytes);
       const pages = pdfDoc.getPages();
 
-      // Embed a Unicode font that supports Hebrew + Latin
+      // Register fontkit and embed a Unicode font that supports Hebrew + Latin
+      const fontkit = (await import("@pdf-lib/fontkit")).default;
+      pdfDoc.registerFontkit(fontkit);
       const fontUrl = "/fonts/Rubik-Regular.ttf";
       const fontResponse = await fetch(fontUrl);
       const fontBytes = await fontResponse.arrayBuffer();
