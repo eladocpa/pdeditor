@@ -54,6 +54,7 @@ export default function PdfEditor() {
   const [isExporting, setIsExporting] = useState(false);
   const [showShapesMenu, setShowShapesMenu] = useState(false);
   const [shapeColor, setShapeColor] = useState("#e53e3e");
+  const [shapeStrokeWidth, setShapeStrokeWidth] = useState(3);
   const pageContainerRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const stampInputRef = useRef<HTMLInputElement>(null);
@@ -194,10 +195,10 @@ export default function PdfEditor() {
       const isWide = shapeType === "line" || shapeType === "arrow-left" || shapeType === "arrow-right";
       const w = isWide ? 160 : 50;
       const h = isWide ? 30 : 50;
-      addItem("shape", shapeType, { color: shapeColor, width: w, height: h, shapeType, strokeWidth: 3 });
+      addItem("shape", shapeType, { color: shapeColor, width: w, height: h, shapeType, strokeWidth: shapeStrokeWidth });
       setShowShapesMenu(false);
     },
-    [addItem, shapeColor]
+    [addItem, shapeColor, shapeStrokeWidth]
   );
 
   // Close shapes menu on outside click
@@ -538,6 +539,26 @@ export default function PdfEditor() {
                         onChange={(e) => setShapeColor(e.target.value)}
                         className="w-6 h-6 rounded-full cursor-pointer border-0 p-0"
                       />
+                    </div>
+                  </div>
+                  <div className="border-t border-border pt-2 mt-2">
+                    <label className="text-[11px] text-text-muted mb-1.5 block">עובי קו: {shapeStrokeWidth}px</label>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center w-5">
+                        <div className="rounded-full" style={{ width: 4, height: 4, backgroundColor: shapeColor }} />
+                      </div>
+                      <input
+                        type="range"
+                        min={1}
+                        max={10}
+                        step={1}
+                        value={shapeStrokeWidth}
+                        onChange={(e) => setShapeStrokeWidth(Number(e.target.value))}
+                        className="flex-1 h-1.5 accent-primary cursor-pointer"
+                      />
+                      <div className="flex items-center justify-center w-5">
+                        <div className="rounded-full" style={{ width: 12, height: 12, backgroundColor: shapeColor }} />
+                      </div>
                     </div>
                   </div>
                 </div>
