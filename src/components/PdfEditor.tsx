@@ -280,20 +280,26 @@ export default function PdfEditor() {
           // so scale it proportionally to the PDF shape size, not the page ratio.
           const sw = (item.strokeWidth || 3) / 100 * Math.min(pdfW, pdfH);
 
+          // For shapes with square viewBox (checkmark, x-mark, triangle, circle),
+          // preserve aspect ratio like SVG's default xMidYMid meet behavior.
+          const uniformSize = Math.min(pdfW, pdfH);
+          const offsetX = pdfX + (pdfW - uniformSize) / 2;
+          const offsetY = pdfY + (pdfH - uniformSize) / 2;
+
           switch (item.shapeType) {
             case "checkmark": {
               const pts = [
-                { x: pdfX + pdfW * 0.15, y: pdfY + pdfH * 0.45 },
-                { x: pdfX + pdfW * 0.40, y: pdfY + pdfH * 0.20 },
-                { x: pdfX + pdfW * 0.85, y: pdfY + pdfH * 0.80 },
+                { x: offsetX + uniformSize * 0.15, y: offsetY + uniformSize * 0.45 },
+                { x: offsetX + uniformSize * 0.40, y: offsetY + uniformSize * 0.20 },
+                { x: offsetX + uniformSize * 0.85, y: offsetY + uniformSize * 0.80 },
               ];
               page.drawLine({ start: pts[0], end: pts[1], thickness: sw, color });
               page.drawLine({ start: pts[1], end: pts[2], thickness: sw, color });
               break;
             }
             case "x-mark": {
-              page.drawLine({ start: { x: pdfX + pdfW * 0.15, y: pdfY + pdfH * 0.15 }, end: { x: pdfX + pdfW * 0.85, y: pdfY + pdfH * 0.85 }, thickness: sw, color });
-              page.drawLine({ start: { x: pdfX + pdfW * 0.85, y: pdfY + pdfH * 0.15 }, end: { x: pdfX + pdfW * 0.15, y: pdfY + pdfH * 0.85 }, thickness: sw, color });
+              page.drawLine({ start: { x: offsetX + uniformSize * 0.15, y: offsetY + uniformSize * 0.15 }, end: { x: offsetX + uniformSize * 0.85, y: offsetY + uniformSize * 0.85 }, thickness: sw, color });
+              page.drawLine({ start: { x: offsetX + uniformSize * 0.85, y: offsetY + uniformSize * 0.15 }, end: { x: offsetX + uniformSize * 0.15, y: offsetY + uniformSize * 0.85 }, thickness: sw, color });
               break;
             }
             case "rectangle": {
@@ -309,9 +315,9 @@ export default function PdfEditor() {
               break;
             }
             case "triangle": {
-              const p1 = { x: pdfX + pdfW * 0.5, y: pdfY + pdfH * 0.9 };
-              const p2 = { x: pdfX + pdfW * 0.9, y: pdfY + pdfH * 0.1 };
-              const p3 = { x: pdfX + pdfW * 0.1, y: pdfY + pdfH * 0.1 };
+              const p1 = { x: offsetX + uniformSize * 0.5, y: offsetY + uniformSize * 0.9 };
+              const p2 = { x: offsetX + uniformSize * 0.9, y: offsetY + uniformSize * 0.1 };
+              const p3 = { x: offsetX + uniformSize * 0.1, y: offsetY + uniformSize * 0.1 };
               page.drawLine({ start: p1, end: p2, thickness: sw, color });
               page.drawLine({ start: p2, end: p3, thickness: sw, color });
               page.drawLine({ start: p3, end: p1, thickness: sw, color });
