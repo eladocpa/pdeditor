@@ -3,9 +3,11 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { X, Maximize2, Eraser } from "lucide-react";
 
+export type ShapeType = "checkmark" | "x-mark" | "rectangle" | "circle" | "triangle" | "arrow-left" | "arrow-right" | "line";
+
 export interface OverlayItem {
   id: string;
-  type: "signature" | "text" | "date" | "image";
+  type: "signature" | "text" | "date" | "image" | "shape";
   x: number;
   y: number;
   width: number;
@@ -14,6 +16,8 @@ export interface OverlayItem {
   fontSize?: number;
   color?: string;
   page: number;
+  shapeType?: ShapeType;
+  strokeWidth?: number;
 }
 
 interface DraggableItemProps {
@@ -130,6 +134,68 @@ export default function DraggableItem({
     };
   }, [isDragging, isResizing, item.id, onUpdate, viewportToLocal]);
 
+  const renderShape = () => {
+    const color = item.color || "#e53e3e";
+    const sw = item.strokeWidth || 3;
+    const common = { stroke: color, strokeWidth: sw, fill: "none", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+
+    switch (item.shapeType) {
+      case "checkmark":
+        return (
+          <svg viewBox="0 0 100 100" className="w-full h-full">
+            <polyline points="15,55 40,80 85,20" {...common} />
+          </svg>
+        );
+      case "x-mark":
+        return (
+          <svg viewBox="0 0 100 100" className="w-full h-full">
+            <line x1="15" y1="15" x2="85" y2="85" {...common} />
+            <line x1="85" y1="15" x2="15" y2="85" {...common} />
+          </svg>
+        );
+      case "rectangle":
+        return (
+          <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none">
+            <rect x={sw} y={sw} width={100 - sw * 2} height={100 - sw * 2} {...common} />
+          </svg>
+        );
+      case "circle":
+        return (
+          <svg viewBox="0 0 100 100" className="w-full h-full">
+            <ellipse cx="50" cy="50" rx={48 - sw} ry={48 - sw} {...common} />
+          </svg>
+        );
+      case "triangle":
+        return (
+          <svg viewBox="0 0 100 100" className="w-full h-full">
+            <polygon points="50,10 90,90 10,90" {...common} />
+          </svg>
+        );
+      case "arrow-right":
+        return (
+          <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none">
+            <line x1="10" y1="50" x2="80" y2="50" {...common} />
+            <polyline points="65,30 85,50 65,70" {...common} />
+          </svg>
+        );
+      case "arrow-left":
+        return (
+          <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none">
+            <line x1="20" y1="50" x2="90" y2="50" {...common} />
+            <polyline points="35,30 15,50 35,70" {...common} />
+          </svg>
+        );
+      case "line":
+        return (
+          <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none">
+            <line x1="5" y1="50" x2="95" y2="50" {...common} />
+          </svg>
+        );
+      default:
+        return null;
+    }
+  };
+
   const renderContent = () => {
     switch (item.type) {
       case "signature":
@@ -142,6 +208,8 @@ export default function DraggableItem({
             draggable={false}
           />
         );
+      case "shape":
+        return renderShape();
       case "text":
       case "date":
         return (

@@ -20,8 +20,17 @@ import {
   Layers,
   RefreshCw,
   Stamp,
+  Shapes,
+  Check,
+  XIcon,
+  Square,
+  Circle,
+  Triangle,
+  ArrowLeft,
+  Minus,
+  ChevronDown,
 } from "lucide-react";
-import DraggableItem, { OverlayItem } from "@/components/DraggableItem";
+import DraggableItem, { OverlayItem, ShapeType } from "@/components/DraggableItem";
 import SignatureModal from "@/components/SignatureModal";
 import TextModal from "@/components/TextModal";
 import PageManager from "@/components/PageManager";
@@ -43,9 +52,12 @@ export default function PdfEditor() {
   const [showPageManager, setShowPageManager] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [showShapesMenu, setShowShapesMenu] = useState(false);
+  const [shapeColor, setShapeColor] = useState("#e53e3e");
   const pageContainerRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const stampInputRef = useRef<HTMLInputElement>(null);
+  const shapesMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const stored = sessionStorage.getItem("pdfFile");
@@ -66,11 +78,10 @@ export default function PdfEditor() {
     (
       type: OverlayItem["type"],
       content: string,
-      opts?: { fontSize?: number; color?: string; width?: number; height?: number }
+      opts?: { fontSize?: number; color?: string; width?: number; height?: number; shapeType?: ShapeType; strokeWidth?: number }
     ) => {
       const container = pageContainerRef.current;
       if (!container) return;
-      // Use clientWidth/clientHeight (local coords, unaffected by CSS scale)
       const cw = container.clientWidth;
       const ch = container.clientHeight;
 
@@ -86,6 +97,8 @@ export default function PdfEditor() {
         fontSize: opts?.fontSize,
         color: opts?.color,
         page: currentPage,
+        shapeType: opts?.shapeType,
+        strokeWidth: opts?.strokeWidth,
       };
       setOverlayItems((prev) => [...prev, newItem]);
     },
@@ -176,6 +189,29 @@ export default function PdfEditor() {
     [overlayItems, updateItem]
   );
 
+  const handleAddShape = useCallback(
+    (shapeType: ShapeType) => {
+      const isWide = shapeType === "line" || shapeType === "arrow-left" || shapeType === "arrow-right";
+      const w = isWide ? 160 : 50;
+      const h = isWide ? 30 : 50;
+      addItem("shape", shapeType, { color: shapeColor, width: w, height: h, shapeType, strokeWidth: 3 });
+      setShowShapesMenu(false);
+    },
+    [addItem, shapeColor]
+  );
+
+  // Close shapes menu on outside click
+  useEffect(() => {
+    if (!showShapesMenu) return;
+    const handleClick = (e: MouseEvent) => {
+      if (shapesMenuRef.current && !shapesMenuRef.current.contains(e.target as Node)) {
+        setShowShapesMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showShapesMenu]);
+
   const clearAll = () => {
     setOverlayItems([]);
   };
@@ -222,7 +258,75 @@ export default function PdfEditor() {
         const pdfX = item.x * ratio;
         const pdfY = pageH - (item.y * ratio) - pdfH;
 
-        if (item.type === "signature" || item.type === "image") {
+        if (item.type === "shape") {
+          const { rgb } = await import("pdf-lib");
+          const hexToRgb = (hex: string) => {
+            const r = parseInt(hex.slice(1, 3), 16) / 255;
+            const g = parseInt(hex.slice(3, 5), 16) / 255;
+            const b = parseInt(hex.slice(5, 7), 16) / 255;
+            return rgb(r, g, b);
+          };
+          const color = hexToRgb(item.color || "#e53e3e");
+          const sw = (item.strokeWidth || 3) * ratio;
+
+          switch (item.shapeType) {
+            case "checkmark": {
+              const pts = [
+                { x: pdfX + pdfW * 0.15, y: pdfY + pdfH * 0.45 },
+                { x: pdfX + pdfW * 0.40, y: pdfY + pdfH * 0.20 },
+                { x: pdfX + pdfW * 0.85, y: pdfY + pdfH * 0.80 },
+              ];
+              page.drawLine({ start: pts[0], end: pts[1], thickness: sw, color });
+              page.drawLine({ start: pts[1], end: pts[2], thickness: sw, color });
+              break;
+            }
+            case "x-mark": {
+              page.drawLine({ start: { x: pdfX + pdfW * 0.15, y: pdfY + pdfH * 0.15 }, end: { x: pdfX + pdfW * 0.85, y: pdfY + pdfH * 0.85 }, thickness: sw, color });
+              page.drawLine({ start: { x: pdfX + pdfW * 0.85, y: pdfY + pdfH * 0.15 }, end: { x: pdfX + pdfW * 0.15, y: pdfY + pdfH * 0.85 }, thickness: sw, color });
+              break;
+            }
+            case "rectangle": {
+              page.drawRectangle({ x: pdfX + sw, y: pdfY + sw, width: pdfW - sw * 2, height: pdfH - sw * 2, borderColor: color, borderWidth: sw, color: rgb(0, 0, 0), opacity: 0 });
+              break;
+            }
+            case "circle": {
+              const cx = pdfX + pdfW / 2;
+              const cy = pdfY + pdfH / 2;
+              const rx = (pdfW / 2) - sw;
+              const ry = (pdfH / 2) - sw;
+              page.drawEllipse({ x: cx, y: cy, xScale: rx, yScale: ry, borderColor: color, borderWidth: sw, color: rgb(0, 0, 0), opacity: 0 });
+              break;
+            }
+            case "triangle": {
+              const p1 = { x: pdfX + pdfW * 0.5, y: pdfY + pdfH * 0.9 };
+              const p2 = { x: pdfX + pdfW * 0.9, y: pdfY + pdfH * 0.1 };
+              const p3 = { x: pdfX + pdfW * 0.1, y: pdfY + pdfH * 0.1 };
+              page.drawLine({ start: p1, end: p2, thickness: sw, color });
+              page.drawLine({ start: p2, end: p3, thickness: sw, color });
+              page.drawLine({ start: p3, end: p1, thickness: sw, color });
+              break;
+            }
+            case "arrow-right": {
+              const midY = pdfY + pdfH / 2;
+              page.drawLine({ start: { x: pdfX + pdfW * 0.1, y: midY }, end: { x: pdfX + pdfW * 0.8, y: midY }, thickness: sw, color });
+              page.drawLine({ start: { x: pdfX + pdfW * 0.65, y: pdfY + pdfH * 0.7 }, end: { x: pdfX + pdfW * 0.85, y: midY }, thickness: sw, color });
+              page.drawLine({ start: { x: pdfX + pdfW * 0.65, y: pdfY + pdfH * 0.3 }, end: { x: pdfX + pdfW * 0.85, y: midY }, thickness: sw, color });
+              break;
+            }
+            case "arrow-left": {
+              const midY2 = pdfY + pdfH / 2;
+              page.drawLine({ start: { x: pdfX + pdfW * 0.2, y: midY2 }, end: { x: pdfX + pdfW * 0.9, y: midY2 }, thickness: sw, color });
+              page.drawLine({ start: { x: pdfX + pdfW * 0.35, y: pdfY + pdfH * 0.7 }, end: { x: pdfX + pdfW * 0.15, y: midY2 }, thickness: sw, color });
+              page.drawLine({ start: { x: pdfX + pdfW * 0.35, y: pdfY + pdfH * 0.3 }, end: { x: pdfX + pdfW * 0.15, y: midY2 }, thickness: sw, color });
+              break;
+            }
+            case "line": {
+              const midY3 = pdfY + pdfH / 2;
+              page.drawLine({ start: { x: pdfX + pdfW * 0.05, y: midY3 }, end: { x: pdfX + pdfW * 0.95, y: midY3 }, thickness: sw, color });
+              break;
+            }
+          }
+        } else if (item.type === "signature" || item.type === "image") {
           const imgData = item.content.split(",")[1];
           const imgBytes = Uint8Array.from(atob(imgData), (c) =>
             c.charCodeAt(0)
@@ -382,6 +486,64 @@ export default function PdfEditor() {
               <Stamp className="w-3.5 h-3.5" />
               חותמת
             </button>
+            <div className="relative" ref={shapesMenuRef}>
+              <button
+                onClick={() => setShowShapesMenu((v) => !v)}
+                className={`toolbar-btn ${showShapesMenu ? "bg-bg-dark" : ""}`}
+              >
+                <Shapes className="w-3.5 h-3.5" />
+                סימון
+                <ChevronDown className="w-3 h-3" />
+              </button>
+              {showShapesMenu && (
+                <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-xl border border-border p-3 z-50 min-w-[220px]">
+                  <div className="grid grid-cols-4 gap-1.5 mb-3">
+                    {([
+                      ["checkmark", Check, "וי"],
+                      ["x-mark", XIcon, "איקס"],
+                      ["rectangle", Square, "מרובע"],
+                      ["circle", Circle, "עיגול"],
+                      ["triangle", Triangle, "משולש"],
+                      ["arrow-right", ArrowRight, "חץ ימינה"],
+                      ["arrow-left", ArrowLeft, "חץ שמאלה"],
+                      ["line", Minus, "קו"],
+                    ] as [ShapeType, React.ComponentType<{ className?: string }>, string][]).map(
+                      ([shape, Icon, label]) => (
+                        <button
+                          key={shape}
+                          onClick={() => handleAddShape(shape)}
+                          className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-bg-dark transition-colors"
+                          title={label}
+                        >
+                          <span style={{ color: shapeColor }}><Icon className="w-5 h-5" /></span>
+                          <span className="text-[10px] text-text-muted">{label}</span>
+                        </button>
+                      )
+                    )}
+                  </div>
+                  <div className="border-t border-border pt-2">
+                    <label className="text-[11px] text-text-muted mb-1.5 block">צבע סימון</label>
+                    <div className="flex items-center gap-1.5">
+                      {["#e53e3e", "#2563eb", "#16a34a", "#9333ea", "#ea580c", "#1e293b"].map((c) => (
+                        <button
+                          key={c}
+                          onClick={() => setShapeColor(c)}
+                          className={`w-6 h-6 rounded-full border-2 transition-transform ${shapeColor === c ? "border-gray-800 scale-110" : "border-transparent"}`}
+                          style={{ backgroundColor: c }}
+                        />
+                      ))}
+                      <input
+                        type="color"
+                        value={shapeColor}
+                        onChange={(e) => setShapeColor(e.target.value)}
+                        className="w-6 h-6 rounded-full cursor-pointer border-0 p-0"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <input
               ref={imageInputRef}
               type="file"
