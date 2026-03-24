@@ -276,7 +276,9 @@ export default function PdfEditor() {
             return rgb(r, g, b);
           };
           const color = hexToRgb(item.color || "#e53e3e");
-          const sw = (item.strokeWidth || 3) * ratio;
+          // strokeWidth is relative to a 100×100 SVG viewBox in the UI,
+          // so scale it proportionally to the PDF shape size, not the page ratio.
+          const sw = (item.strokeWidth || 3) / 100 * Math.min(pdfW, pdfH);
 
           switch (item.shapeType) {
             case "checkmark": {
