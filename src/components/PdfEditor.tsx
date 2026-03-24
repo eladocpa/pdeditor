@@ -240,6 +240,12 @@ export default function PdfEditor() {
       const pdfDoc = await PDFDocument.load(pdfBytes);
       const pages = pdfDoc.getPages();
 
+      // Embed a Unicode font that supports Hebrew + Latin
+      const fontUrl = "/fonts/Rubik-Regular.ttf";
+      const fontResponse = await fetch(fontUrl);
+      const fontBytes = await fontResponse.arrayBuffer();
+      const unicodeFont = await pdfDoc.embedFont(fontBytes, { subset: true });
+
       for (const item of overlayItems) {
         const pageIndex = item.page - 1;
         if (pageIndex < 0 || pageIndex >= pages.length) continue;
@@ -379,6 +385,7 @@ export default function PdfEditor() {
             x: pdfX,
             y: pdfY + pdfH - fontSize,
             size: fontSize,
+            font: unicodeFont,
             color: hexToRgb(item.color || "#1e293b"),
           });
         }
